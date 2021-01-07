@@ -58,12 +58,33 @@ def clear_countries_with_no_recovery_data(df_confirmed: pd.DataFrame,
     return df_confirmed, df_deaths, df_recovered
 
 
+def calculate_active_cases_per_day(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame):
+    """
+    Calculates active cases per day
+
+    :param df_confirmed: dataframe with confirmed cases
+    :param df_deaths: dataframe with death cases
+    :param df_recovered: dataframe with recovered cases
+    :return: dataframe with active cases per day
+    """
+    df_active_cases = pd.DataFrame(index=df_confirmed.index, columns=df_confirmed.columns)
+    df_active_cases[["Lat", "Long"]] = df_confirmed[["Lat", "Long"]]
+    fd_col = len(["Lat", "Long"])  # First day column number
+
+    df_active_cases.iloc[:, fd_col:] = (df_confirmed.iloc[:, fd_col:]
+                                            - df_deaths.iloc[:, fd_col:]
+                                            - df_recovered.iloc[:, fd_col:])
+
+    return df_active_cases
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
     df_confirmed = read_covid_time_series_data(path="time_series_covid19_confirmed_global.txt")
 
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_recovery_data(df_confirmed, df_deaths, df_recovered)
+    df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
 
 
 if __name__ == "__main__":
