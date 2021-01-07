@@ -79,10 +79,12 @@ def calculate_active_cases_per_day(df_confirmed: pd.DataFrame, df_deaths: pd.Dat
     return df_active_cases
 
 
-def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame):
+def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame,
+                              df_active_cases):
     """
     Pop longitude and latitude from dataframes for easier usage
 
+    :param df_active_cases: daily active cases
     :param df_confirmed: dataframe with confirmed cases
     :param df_deaths: dataframe with death cases
     :param df_recovered: dataframe with recovered cases
@@ -90,11 +92,11 @@ def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFram
     """
     df_lat_long = df_confirmed[["Lat", "Long"]]
 
-    for df in [df_confirmed, df_deaths, df_recovered]:
+    for df in [df_confirmed, df_deaths, df_recovered, df_active_cases]:
         df.pop("Lat")
         df.pop("Long")
 
-    return df_confirmed, df_deaths, df_recovered, df_lat_long
+    return df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long
 
 
 def plot_country(country_name, dataframe: pd.DataFrame, plot_title=""):
@@ -133,6 +135,25 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     return df_death_ratio
 
 
+def calculate_days_mean(df_active_cases: pd.DataFrame, mean_days_number=7):
+    """
+    Calculate mean of active cases from last mean_days_number
+
+    :param df_active_cases: dataframe with active cases
+    :param mean_days_number: number of days to calculate mean
+    :return: dataframe with mean active cases
+    """
+
+    df_mean_active_cases = pd.DataFrame(columns=df_active_cases.columns.values[mean_days_number:],
+                                        index=df_active_cases.index)
+
+    for day in df_mean_active_cases.columns:
+        date_range = pd.date_range(day-pd.DateOffset(days=mean_days_number-1), day, freq="D")
+        df_mean_active_cases[day] = df_active_cases[date_range].mean(axis=1)
+
+    return df_mean_active_cases
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
@@ -140,12 +161,14 @@ def main():
 
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_recovery_data(df_confirmed, df_deaths, df_recovered)
 
-    # df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
-    df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed,
+    df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
+    df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
                                                                                    df_deaths,
-                                                                                   df_recovered)
-    df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+                                                                                   df_recovered,
+                                                                                   df_active_cases)
+    # df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
 
+    calculate_days_mean(df_active_cases)
 
 if __name__ == "__main__":
     main()
