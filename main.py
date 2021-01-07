@@ -130,12 +130,12 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     plot_country("China_Hubei", df_deaths, "deaths")
     plot_country("China_Hubei", df_recovered, "recovered")
     plot_country("China_Hubei", df_confirmed, "confirmed")
-    plt.show()
+    # plt.show()
 
     return df_death_ratio
 
 
-def calculate_days_mean(df_active_cases: pd.DataFrame, mean_days_number=7):
+def calculate_mean_active_cases(df_active_cases: pd.DataFrame, mean_days_number=7):
     """
     Calculate mean of active cases from last mean_days_number
 
@@ -148,10 +148,39 @@ def calculate_days_mean(df_active_cases: pd.DataFrame, mean_days_number=7):
                                         index=df_active_cases.index)
 
     for day in df_mean_active_cases.columns:
-        date_range = pd.date_range(day-pd.DateOffset(days=mean_days_number-1), day, freq="D")
+        date_range = pd.date_range(day - pd.DateOffset(days=mean_days_number - 1), day, freq="D")
         df_mean_active_cases[day] = df_active_cases[date_range].mean(axis=1)
 
     return df_mean_active_cases
+
+
+def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
+    """
+    Calculate reproduction coefficient for each day
+    R_i = M_i/M_(i-rd)
+
+    M_i - mean active cases for day i
+    rd - reproduction days
+
+    :param df_active_cases: dataframe with active cases
+    :param reproduction_days: reproduction days
+    :return: dataframe with reproduction coefficient
+    """
+
+    # TODO: Delete samples with less than 100 active cases
+
+    df_mean_active_cases = calculate_mean_active_cases(df_active_cases, mean_days_number=7)
+
+    df_reproduction = pd.DataFrame(columns=df_mean_active_cases.columns.values[reproduction_days:],
+                                   index=df_mean_active_cases.index)
+
+    for day in df_reproduction:
+        reproduction_day = day - pd.DateOffset(days=reproduction_days)
+        df_reproduction[day] = df_mean_active_cases[day]/df_mean_active_cases[reproduction_day]
+
+    df_reproduction.fillna(0)
+
+    return df_reproduction
 
 
 def main():
@@ -163,12 +192,12 @@ def main():
 
     df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
     df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
-                                                                                   df_deaths,
-                                                                                   df_recovered,
-                                                                                   df_active_cases)
-    # df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+                                                                                                    df_deaths,
+                                                                                                    df_recovered,
+                                                                                                    df_active_cases)
+    df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+    df_reproduction = calculate_reproduction_coeff(df_active_cases)
 
-    calculate_days_mean(df_active_cases)
 
 if __name__ == "__main__":
     main()
