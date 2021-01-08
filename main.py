@@ -1,5 +1,9 @@
 import pandas as pd
+import netCDF4
+import numpy as np
+
 from matplotlib import pyplot as plt
+from netCDF4 import Dataset
 
 
 def read_covid_time_series_data(path: str):
@@ -183,6 +187,61 @@ def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
     return df_reproduction
 
 
+def find_long_lat_index(latitudes, longitudes, df_lat_long: pd.DataFrame):
+    """
+    Finds longitude and latitude indexes in latitudes & longitudes arrays for each country  
+    
+    :param latitudes: array with latitudes
+    :param longitudes: array with longitudes
+    :param df_lat_long: dataframe with longitude and 
+    :return df_lat_long_indexes: dataframe with latitude and longitude indexes in input arrays for each country
+    """
+
+    df_lat_long_indexes = df_lat_long.copy()
+
+    for index, country in df_lat_long.iterrows():
+        country_lat = country["Lat"]
+        country_long = country["Long"]
+        df_lat_long_indexes.loc[index, "lat_idx"] = np.int((np.abs(latitudes - country_lat)).argmin())
+        df_lat_long_indexes.loc[index, "long_idx"] = np.int((np.abs(longitudes - country_long)).argmin())
+
+    return df_lat_long_indexes
+
+
+def read_terraclimate(path_temp_max: str, df_lat_long: pd.DataFrame):
+    weather_temp_max = Dataset(path_temp_max)
+
+    latitudes = weather_temp_max["lat"][:]
+    longitudes = weather_temp_max["lon"][:]
+
+    df_lat_long = find_long_lat_index(latitudes, longitudes, df_lat_long)
+
+
+    # plt.imshow(weather["tmax"][month])
+    # ["tmax"][month][lat][lon]
+
+    df_temp_max = pd.DataFrame(index=df_lat_long.index, columns=np.arange(0, 12))
+
+    for index, country in df_lat_long.iterrows():
+        # print(country["lat_idx"])
+        print(f"{index}: ", weather_temp_max["tmax"][0][int(country["lat_idx"])][int(country["long_idx"])])
+
+    # for month in df_temp_max.columns:
+    #     print(weather_temp_max["tmax"][month][500][500])
+    #     print(month)
+    #
+    # print(weather_temp_max["tmax"][month][:][:])
+    # print("\n\n")
+    # print(weather_temp_max["tmax"][month][:][:][:])
+    # print("\n\n")
+    # print(weather_temp_max["tmax"][month][:][:][:][:])
+    # print("\n\n")
+    # temp = weather_temp_max["tmax"][month][500][500]
+    # print(temp)
+    # # plt.show()
+    # ...
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
@@ -197,6 +256,8 @@ def main():
                                                                                                     df_active_cases)
     df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
     df_reproduction = calculate_reproduction_coeff(df_active_cases)
+
+    read_terraclimate("TerraClimate_tmax_2018.nc", df_lat_long)
 
 
 if __name__ == "__main__":
