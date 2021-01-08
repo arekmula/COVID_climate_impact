@@ -243,9 +243,9 @@ def read_terraclimate(path_temp_max: str, df_lat_long: pd.DataFrame):
 
 
 def main():
-    df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
-    df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
-    df_confirmed = read_covid_time_series_data(path="time_series_covid19_confirmed_global.txt")
+    df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
+    df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
+    df_confirmed = read_covid_time_series_data(path="data/time_series_covid19_confirmed_global.txt")
 
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_recovery_data(df_confirmed, df_deaths, df_recovered)
 
@@ -257,7 +257,7 @@ def main():
     df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
     df_reproduction = calculate_reproduction_coeff(df_active_cases)
 
-    read_terraclimate("TerraClimate_tmax_2018.nc", df_lat_long)
+    read_terraclimate("data/TerraClimate_tmax_2018.nc", df_lat_long)
 
 
 if __name__ == "__main__":
