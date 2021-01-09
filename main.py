@@ -2,6 +2,8 @@ import pandas as pd
 import netCDF4
 import numpy as np
 
+from pathlib import Path
+
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset
 
@@ -208,38 +210,52 @@ def find_long_lat_index(latitudes, longitudes, df_lat_long: pd.DataFrame):
     return df_lat_long_indexes
 
 
-def read_terraclimate(path_temp_max: str, df_lat_long: pd.DataFrame):
-    weather_temp_max = Dataset(path_temp_max)
+def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.DataFrame,
+                      df_temp_mean_path=Path("data/df_temp_mean.csv")):
+    """
+    Computes mean temperature for each country and month, based on country latitude and longitude.
 
-    latitudes = weather_temp_max["lat"][:]
-    longitudes = weather_temp_max["lon"][:]
+    :param path_temp_max: path to file with maximum temperature for each month and lat&long
+    :param path_temp_min: path to file with minimum temperature for each month and lat&long
+    :param df_lat_long: dataframe with latitude and longitude for each country
+    :param df_temp_mean_path: optional: path to dataframe where mean temperature is already computed
+    :return: dataframe with mean temperature for each country and month
+    """
 
-    df_lat_long = find_long_lat_index(latitudes, longitudes, df_lat_long)
+    if df_temp_mean_path.exists():
+        print(f"File {df_temp_mean_path.name} exists! Reading...")
+        df_temp_mean = pd.read_csv(df_temp_mean_path)
+        return df_temp_mean
+    else:
+        print(f"File {df_temp_mean_path.name} doesn't exist!\nComputing mean temperature for each country manually.")
+        print("THIS MIGHT TAKE LONG!\n")
 
+        weather_temp_max = Dataset(path_temp_max)
+        weather_temp_min = Dataset(path_temp_min)
 
-    # plt.imshow(weather["tmax"][month])
-    # ["tmax"][month][lat][lon]
+        latitudes = weather_temp_max["lat"][:]
+        longitudes = weather_temp_max["lon"][:]
 
-    df_temp_max = pd.DataFrame(index=df_lat_long.index, columns=np.arange(0, 12))
+        df_lat_long = find_long_lat_index(latitudes, longitudes, df_lat_long)
 
-    for index, country in df_lat_long.iterrows():
-        # print(country["lat_idx"])
-        print(f"{index}: ", weather_temp_max["tmax"][0][int(country["lat_idx"])][int(country["long_idx"])])
+        df_temp_mean = pd.DataFrame(index=df_lat_long.index, columns=np.arange(0, 12))
 
-    # for month in df_temp_max.columns:
-    #     print(weather_temp_max["tmax"][month][500][500])
-    #     print(month)
-    #
-    # print(weather_temp_max["tmax"][month][:][:])
-    # print("\n\n")
-    # print(weather_temp_max["tmax"][month][:][:][:])
-    # print("\n\n")
-    # print(weather_temp_max["tmax"][month][:][:][:][:])
-    # print("\n\n")
-    # temp = weather_temp_max["tmax"][month][500][500]
-    # print(temp)
-    # # plt.show()
-    # ...
+        for index, country in df_lat_long.iterrows():
+            print(index)
+            for month in df_temp_mean.columns:
+                print(month)
+                df_temp_mean.loc[index, month] = ((weather_temp_max["tmax"]
+                                                                   [month]
+                                                                   [int(country["lat_idx"])]
+                                                                   [int(country["long_idx"])]) +
+                                                  (weather_temp_min["tmin"]
+                                                                   [month]
+                                                                   [int(country["lat_idx"])]
+                                                                   [int(country["long_idx"])])) / 2
+
+        df_temp_mean.to_csv("data/df_temp_mean.csv")
+
+        return df_temp_mean
 
 
 def main():
@@ -257,7 +273,9 @@ def main():
     df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
     df_reproduction = calculate_reproduction_coeff(df_active_cases)
 
-    read_terraclimate("data/TerraClimate_tmax_2018.nc", df_lat_long)
+    df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
+                                            Path("data/TerraClimate_tmin_2018.nc"),
+                                            df_lat_long)
 
 
 if __name__ == "__main__":
