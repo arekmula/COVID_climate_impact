@@ -204,8 +204,8 @@ def find_long_lat_index(latitudes, longitudes, df_lat_long: pd.DataFrame):
     for index, country in df_lat_long.iterrows():
         country_lat = country["Lat"]
         country_long = country["Long"]
-        df_lat_long_indexes.loc[index, "lat_idx"] = np.int((np.abs(latitudes - country_lat)).argmin())
-        df_lat_long_indexes.loc[index, "long_idx"] = np.int((np.abs(longitudes - country_long)).argmin())
+        df_lat_long_indexes.loc[index, "lat_idx"] = (np.abs(latitudes - country_lat).argmin())
+        df_lat_long_indexes.loc[index, "long_idx"] = (np.abs(longitudes - country_long).argmin())
 
     return df_lat_long_indexes
 
@@ -242,16 +242,10 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
 
         for index, country in df_lat_long.iterrows():
             print(index)
-            for month in df_temp_mean.columns:
-                print(month)
-                df_temp_mean.loc[index, month] = ((weather_temp_max["tmax"]
-                                                                   [month]
-                                                                   [int(country["lat_idx"])]
-                                                                   [int(country["long_idx"])]) +
-                                                  (weather_temp_min["tmin"]
-                                                                   [month]
-                                                                   [int(country["lat_idx"])]
-                                                                   [int(country["long_idx"])])) / 2
+            temp_max = weather_temp_max["tmax"][:, country["lat_idx"], country["long_idx"]]
+            temp_min = weather_temp_min.variables["tmin"][:, country["lat_idx"], country["long_idx"]]
+
+            df_temp_mean.loc[index, :] = (temp_max + temp_min) / 2
 
         df_temp_mean.to_csv("data/df_temp_mean.csv")
 
@@ -269,11 +263,10 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
     :param df_death_ratio: dataframe with death ratio for each country and month
     :return input dataframes with countries that are in df_mean_temperature dataframe:
     """
+    NO_TEMPERATURE_VALUE = 32000
+    df_mean_temperature = df_mean_temperature.loc[df_mean_temperature["0"] < NO_TEMPERATURE_VALUE, :]
 
-    for month in df_mean_temperature.columns:
-        df_mean_temperature[month] = pd.to_numeric(df_mean_temperature[month], errors="coerce")
-
-    df_mean_temperature.dropna(inplace=True)
+    df_mean_temperature = df_mean_temperature.dropna()
     countries_with_temperature = df_mean_temperature.index.values
 
     df_reproduction = df_reproduction[df_reproduction.index.isin(countries_with_temperature)]
