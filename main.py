@@ -54,9 +54,9 @@ def clear_countries_with_no_recovery_data(df_confirmed: pd.DataFrame,
     :return: cleaned dataframes
     """
 
-    recovered_countires = df_recovered.index.values
-    df_deaths = df_deaths[df_deaths.index.isin(recovered_countires)]
-    df_confirmed = df_confirmed[df_confirmed.index.isin(recovered_countires)]
+    recovered_countries = df_recovered.index.values
+    df_deaths = df_deaths[df_deaths.index.isin(recovered_countries)]
+    df_confirmed = df_confirmed[df_confirmed.index.isin(recovered_countries)]
 
     # One country that was death and confirmed cases wasn't publishing recovery data
     death_countries = df_deaths.index.values
@@ -131,7 +131,7 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
 
     df_death_ratio.fillna(0)
     # TODO: What with countries that stopped publishing deaths and recovered like all regions for example China_Hubei
-    # TODO: What with countries that started publishin recovery data later (for example Poland)
+    # TODO: What with countries that started publishing recovery data later (for example Poland)
     plot_country("China_Hubei", df_death_ratio, "death_ratio")
     plot_country("China_Hubei", df_deaths, "deaths")
     plot_country("China_Hubei", df_recovered, "recovered")
@@ -224,7 +224,7 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
 
     if df_temp_mean_path.exists():
         print(f"File {df_temp_mean_path.name} exists! Reading...")
-        df_temp_mean = pd.read_csv(df_temp_mean_path)
+        df_temp_mean = pd.read_csv(df_temp_mean_path, index_col=0)
         return df_temp_mean
     else:
         print(f"File {df_temp_mean_path.name} doesn't exist!\nComputing mean temperature for each country manually.")
@@ -258,6 +258,30 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
         return df_temp_mean
 
 
+def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
+                                       df_reproduction: pd.DataFrame,
+                                       df_death_ratio: pd.DataFrame):
+    """
+    Drops countries with no temperature
+
+    :param df_mean_temperature: dataframe with mean temperature for each country and month
+    :param df_reproduction: dataframe with reproduction coefficient for each country and day
+    :param df_death_ratio: dataframe with death ratio for each country and month
+    :return input dataframes with countries that are in df_mean_temperature dataframe:
+    """
+
+    for month in df_mean_temperature.columns:
+        df_mean_temperature[month] = pd.to_numeric(df_mean_temperature[month], errors="coerce")
+
+    df_mean_temperature.dropna(inplace=True)
+    countries_with_temperature = df_mean_temperature.index.values
+
+    df_reproduction = df_reproduction[df_reproduction.index.isin(countries_with_temperature)]
+    df_death_ratio = df_death_ratio[df_death_ratio.index.isin(countries_with_temperature)]
+
+    return df_mean_temperature, df_reproduction, df_death_ratio
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
@@ -276,6 +300,7 @@ def main():
     df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
                                             Path("data/TerraClimate_tmin_2018.nc"),
                                             df_lat_long)
+    drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
 
 
 if __name__ == "__main__":
