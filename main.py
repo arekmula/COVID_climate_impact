@@ -208,6 +208,9 @@ def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
         reproduction_day = day - pd.DateOffset(days=reproduction_days)
         df_reproduction[day] = df_mean_active_cases[day] / df_mean_active_cases[reproduction_day]
 
+    # Drop countries for which we couldn't count any reproduction coefficient. (No more active cases than
+    # 100 during whole data range)
+    df_reproduction.dropna(axis=0, how='all', inplace=True)
     return df_reproduction
 
 
@@ -286,7 +289,10 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
     :return input dataframes with countries that are in df_mean_temperature dataframe:
     """
     NO_TEMPERATURE_VALUE = 32000
-    df_mean_temperature = df_mean_temperature.loc[df_mean_temperature["0"] < NO_TEMPERATURE_VALUE, :]
+    try:
+        df_mean_temperature = df_mean_temperature.loc[df_mean_temperature["0"] < NO_TEMPERATURE_VALUE, :]
+    except KeyError as e:
+        df_mean_temperature = df_mean_temperature.loc[df_mean_temperature[0] < NO_TEMPERATURE_VALUE, :]
 
     df_mean_temperature = df_mean_temperature.dropna()
     countries_with_temperature = df_mean_temperature.index.values
@@ -296,6 +302,21 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
     df_death_ratio = df_death_ratio[df_death_ratio.index.isin(countries_with_temperature)]
 
     return df_mean_temperature, df_reproduction, df_death_ratio
+
+
+def normalize_reproduction_coefficient(df_reproduction: pd.DataFrame):
+    """
+    Calculate normalized reproduction coefficient for each country by dividing each coefficient by maximum
+     coefficient per country
+
+    :param df_reproduction: dataframe with reproduction coefficient for each country and day
+    :return: dataframe with normalized reproduction coefficient for each country and day
+    """
+
+    df_max = df_reproduction.max(axis=1)
+    df_reproduction_normalized = df_reproduction.div(df_max, axis=0)
+
+    return df_reproduction_normalized
 
 
 def main():
@@ -316,12 +337,16 @@ def main():
     df_reproduction = calculate_reproduction_coeff(df_active_cases)
 
     # Remove countries that were removed after initial clean up
-    df_lat_long = df_lat_long[df_lat_long.index.isin(df_confirmed.index.values)]
+    df_lat_long = df_lat_long[df_lat_long.index.isin(df_reproduction.index.values)]
 
     df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
                                             Path("data/TerraClimate_tmin_2018.nc"),
                                             df_lat_long)
-    drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
+    df_mean_temperature, df_reproduction, df_death_ratio = drop_countries_with_no_temperature(df_mean_temperature,
+                                                                                              df_reproduction,
+                                                                                              df_death_ratio)
+
+    normalize_reproduction_coefficient(df_reproduction)
 
 
 if __name__ == "__main__":
