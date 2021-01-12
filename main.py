@@ -100,9 +100,8 @@ def calculate_active_cases_per_day(df_confirmed: pd.DataFrame, df_deaths: pd.Dat
     :param df_recovered: dataframe with recovered cases
     :return: dataframe with active cases per day
     """
-    df_active_cases = pd.DataFrame(index=df_confirmed.index, columns=df_confirmed.columns)
 
-    df_active_cases = (df_confirmed - df_deaths.iloc - df_recovered)
+    df_active_cases = (df_confirmed - df_deaths - df_recovered)
 
     return df_active_cases
 
@@ -307,7 +306,7 @@ def main():
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed, df_deaths, df_recovered)
     df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
-    # df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
+    df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
     # df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
     #                                                                                                 df_deaths,
     #                                                                                                 df_recovered,
