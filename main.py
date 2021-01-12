@@ -42,11 +42,11 @@ def read_covid_time_series_data(path: str):
     return dataframe
 
 
-def clear_countries_with_no_recovery_data(df_confirmed: pd.DataFrame,
-                                          df_deaths: pd.DataFrame,
-                                          df_recovered: pd.DataFrame):
+def clear_countries_with_no_death_data(df_confirmed: pd.DataFrame,
+                                       df_deaths: pd.DataFrame,
+                                       df_recovered: pd.DataFrame):
     """
-    Delete countries that doesn't publish recovery data to match countries in all dataset.
+    Delete countries that doesn't publish death data to match countries in all dataset.
 
     :param df_confirmed: dataframe with confirmed cases
     :param df_deaths: dataframe with death cases
@@ -54,15 +54,41 @@ def clear_countries_with_no_recovery_data(df_confirmed: pd.DataFrame,
     :return: cleaned dataframes
     """
 
-    recovered_countries = df_recovered.index.values
-    df_deaths = df_deaths[df_deaths.index.isin(recovered_countries)]
-    df_confirmed = df_confirmed[df_confirmed.index.isin(recovered_countries)]
+    # Delete rows which has only zeros
+    df_deaths = df_deaths.loc[(df_deaths != 0).any(axis=1)]
 
-    # One country that was death and confirmed cases wasn't publishing recovery data
-    death_countries = df_deaths.index.values
-    df_recovered = df_recovered[df_recovered.index.isin(death_countries)]
+    countries_with_death_info = df_deaths.index.values
+    df_recovered = df_recovered[df_recovered.index.isin(countries_with_death_info)]
+    df_confirmed = df_confirmed[df_confirmed.index.isin(countries_with_death_info)]
+
+    # Some of the countries appear in death and confirmed data but don't appear in recovery data. Delete them
+    countries_with_recovered_info = df_recovered.index.values
+    df_deaths = df_deaths[df_deaths.index.isin(countries_with_recovered_info)]
+    df_confirmed = df_confirmed[df_confirmed.index.isin(countries_with_recovered_info)]
 
     return df_confirmed, df_deaths, df_recovered
+
+
+def calculate_recovery_data(df_recovered, df_confirmed, days_to_heal=14):
+    """
+    Calculates recovery data for countries that don't publish that info. It's done by moving confirmed cases to
+     recovered cases with delay equal to days_to_heal
+
+    :param days_to_heal: number of days that takes person to heal.
+    :param df_recovered: dataframe with recovered cases
+    :param df_confirmed: dataframe with confirmed cases
+    :return:
+    """
+    mask = (df_recovered != 0).any(axis=1)
+    countries_with_no_recovery_data = mask[mask == 0].index
+    countries_indexes = []
+    for country in countries_with_no_recovery_data:
+        countries_indexes.append(df_recovered.index.get_loc(country))
+
+    new_df_recovered = df_recovered.copy()
+    new_df_recovered.iloc[countries_indexes, days_to_heal:] = df_confirmed.iloc[countries_indexes, :-days_to_heal]
+
+    return new_df_recovered
 
 
 def calculate_active_cases_per_day(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame):
@@ -75,22 +101,16 @@ def calculate_active_cases_per_day(df_confirmed: pd.DataFrame, df_deaths: pd.Dat
     :return: dataframe with active cases per day
     """
     df_active_cases = pd.DataFrame(index=df_confirmed.index, columns=df_confirmed.columns)
-    df_active_cases[["Lat", "Long"]] = df_confirmed[["Lat", "Long"]]
-    fd_col = len(["Lat", "Long"])  # First day column number
 
-    df_active_cases.iloc[:, fd_col:] = (df_confirmed.iloc[:, fd_col:]
-                                        - df_deaths.iloc[:, fd_col:]
-                                        - df_recovered.iloc[:, fd_col:])
+    df_active_cases = (df_confirmed - df_deaths.iloc - df_recovered)
 
     return df_active_cases
 
 
-def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame,
-                              df_active_cases):
+def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, df_recovered: pd.DataFrame):
     """
     Pop longitude and latitude from dataframes for easier usage
 
-    :param df_active_cases: daily active cases
     :param df_confirmed: dataframe with confirmed cases
     :param df_deaths: dataframe with death cases
     :param df_recovered: dataframe with recovered cases
@@ -98,11 +118,11 @@ def create_long_lat_dataframe(df_confirmed: pd.DataFrame, df_deaths: pd.DataFram
     """
     df_lat_long = df_confirmed[["Lat", "Long"]]
 
-    for df in [df_confirmed, df_deaths, df_recovered, df_active_cases]:
+    for df in [df_confirmed, df_deaths, df_recovered]:
         df.pop("Lat")
         df.pop("Long")
 
-    return df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long
+    return df_confirmed, df_deaths, df_recovered, df_lat_long
 
 
 def plot_country(country_name, dataframe: pd.DataFrame, plot_title=""):
@@ -182,7 +202,7 @@ def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
 
     for day in df_reproduction:
         reproduction_day = day - pd.DateOffset(days=reproduction_days)
-        df_reproduction[day] = df_mean_active_cases[day]/df_mean_active_cases[reproduction_day]
+        df_reproduction[day] = df_mean_active_cases[day] / df_mean_active_cases[reproduction_day]
 
     df_reproduction.fillna(0)
 
@@ -280,20 +300,25 @@ def main():
     df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
     df_confirmed = read_covid_time_series_data(path="data/time_series_covid19_confirmed_global.txt")
 
-    df_confirmed, df_deaths, df_recovered = clear_countries_with_no_recovery_data(df_confirmed, df_deaths, df_recovered)
+    df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed,
+                                                                                   df_deaths,
+                                                                                   df_recovered)
 
-    df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
-    df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
-                                                                                                    df_deaths,
-                                                                                                    df_recovered,
-                                                                                                    df_active_cases)
-    df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
-    df_reproduction = calculate_reproduction_coeff(df_active_cases)
+    df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed, df_deaths, df_recovered)
+    df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
-    df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
-                                            Path("data/TerraClimate_tmin_2018.nc"),
-                                            df_lat_long)
-    drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
+    # df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
+    # df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
+    #                                                                                                 df_deaths,
+    #                                                                                                 df_recovered,
+    #                                                                                                 df_active_cases)
+    # df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+    # df_reproduction = calculate_reproduction_coeff(df_active_cases)
+    #
+    # df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
+    #                                         Path("data/TerraClimate_tmin_2018.nc"),
+    #                                         df_lat_long)
+    # drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
 
 
 if __name__ == "__main__":
