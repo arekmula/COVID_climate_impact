@@ -152,12 +152,12 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     df_death_ratio.fillna(0, inplace=True)
     # TODO: What with countries that stopped publishing deaths and recovered? for example China_Hubei
     # TODO: What with countries that started publishing recovery data later (for example Poland)
-    plot_country("Netherlands", df_death_ratio, "death_ratio")
-    plot_country("Netherlands", df_deaths, "deaths")
-    plot_country("Netherlands", df_recovered, "recovered")
-    plot_country("Netherlands", df_confirmed, "confirmed")
-
-    plt.show()
+    # plot_country("Netherlands", df_death_ratio, "death_ratio")
+    # plot_country("Netherlands", df_deaths, "deaths")
+    # plot_country("Netherlands", df_recovered, "recovered")
+    # plot_country("Netherlands", df_confirmed, "confirmed")
+    #
+    # plt.show()
 
     return df_death_ratio
 
@@ -174,9 +174,14 @@ def calculate_mean_active_cases(df_active_cases: pd.DataFrame, mean_days_number=
     df_mean_active_cases = pd.DataFrame(columns=df_active_cases.columns.values[mean_days_number:],
                                         index=df_active_cases.index)
 
+    df_active_cases_copy = df_active_cases.copy()
+    # If active case in day is less than 100, then put NAN in that place. This will ensure, that we will skip the data
+    # that has less than 100 cases per day in calculating mean active cases in the "mean_days_number" period.
+    df_active_cases_copy[df_active_cases_copy < 100] = np.nan
+
     for day in df_mean_active_cases.columns:
         date_range = pd.date_range(day - pd.DateOffset(days=mean_days_number - 1), day, freq="D")
-        df_mean_active_cases[day] = df_active_cases[date_range].mean(axis=1)
+        df_mean_active_cases[day] = df_active_cases_copy[date_range].mean(axis=1, skipna=True)
 
     return df_mean_active_cases
 
@@ -194,8 +199,6 @@ def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
     :return: dataframe with reproduction coefficient
     """
 
-    # TODO: Delete samples with less than 100 active cases
-
     df_mean_active_cases = calculate_mean_active_cases(df_active_cases, mean_days_number=7)
 
     df_reproduction = pd.DataFrame(columns=df_mean_active_cases.columns.values[reproduction_days:],
@@ -204,8 +207,6 @@ def calculate_reproduction_coeff(df_active_cases, reproduction_days=5):
     for day in df_reproduction:
         reproduction_day = day - pd.DateOffset(days=reproduction_days)
         df_reproduction[day] = df_mean_active_cases[day] / df_mean_active_cases[reproduction_day]
-
-    df_reproduction.fillna(0)
 
     return df_reproduction
 
@@ -290,6 +291,7 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
     df_mean_temperature = df_mean_temperature.dropna()
     countries_with_temperature = df_mean_temperature.index.values
 
+    # Delete countries for which we don't have measured temperature
     df_reproduction = df_reproduction[df_reproduction.index.isin(countries_with_temperature)]
     df_death_ratio = df_death_ratio[df_death_ratio.index.isin(countries_with_temperature)]
 
@@ -311,12 +313,15 @@ def main():
     df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
 
     df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
-    # df_reproduction = calculate_reproduction_coeff(df_active_cases)
-    #
-    # df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
-    #                                         Path("data/TerraClimate_tmin_2018.nc"),
-    #                                         df_lat_long)
-    # drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
+    df_reproduction = calculate_reproduction_coeff(df_active_cases)
+
+    # Remove countries that were removed after initial clean up
+    df_lat_long = df_lat_long[df_lat_long.index.isin(df_confirmed.index.values)]
+
+    df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
+                                            Path("data/TerraClimate_tmin_2018.nc"),
+                                            df_lat_long)
+    drop_countries_with_no_temperature(df_mean_temperature, df_reproduction, df_death_ratio)
 
 
 if __name__ == "__main__":
