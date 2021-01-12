@@ -139,7 +139,8 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     :param df_recovered: dataframe with recovered cases
     :return: dataframe with death ratio
     """
-    # Delete January 2020 and January 2021
+    # Delete January 2020 and January 2021 as they are not full months.
+    # My dataset starts from 2020-01-22 and ends on 2021-01-06
     month_end_list = pd.date_range(df_confirmed.columns[0], df_confirmed.columns[-1], freq="M")[1:]  # Delete
     month_start_list = pd.date_range(df_confirmed.columns[0], df_confirmed.columns[-1], freq="MS")[:-1]
 
@@ -148,14 +149,15 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
         df_death_ratio[month_start] = ((df_deaths[month_end] - df_deaths[month_start]) /
                                        (df_recovered[month_end] - df_recovered[month_start]))
 
-    df_death_ratio.fillna(0)
-    # TODO: What with countries that stopped publishing deaths and recovered like all regions for example China_Hubei
+    df_death_ratio.fillna(0, inplace=True)
+    # TODO: What with countries that stopped publishing deaths and recovered? for example China_Hubei
     # TODO: What with countries that started publishing recovery data later (for example Poland)
-    plot_country("China_Hubei", df_death_ratio, "death_ratio")
-    plot_country("China_Hubei", df_deaths, "deaths")
-    plot_country("China_Hubei", df_recovered, "recovered")
-    plot_country("China_Hubei", df_confirmed, "confirmed")
-    # plt.show()
+    plot_country("Netherlands", df_death_ratio, "death_ratio")
+    plot_country("Netherlands", df_deaths, "deaths")
+    plot_country("Netherlands", df_recovered, "recovered")
+    plot_country("Netherlands", df_confirmed, "confirmed")
+
+    plt.show()
 
     return df_death_ratio
 
@@ -307,11 +309,8 @@ def main():
     df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
     df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
-    # df_confirmed, df_deaths, df_recovered, df_active_cases, df_lat_long = create_long_lat_dataframe(df_confirmed,
-    #                                                                                                 df_deaths,
-    #                                                                                                 df_recovered,
-    #                                                                                                 df_active_cases)
-    # df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+
+    df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
     # df_reproduction = calculate_reproduction_coeff(df_active_cases)
     #
     # df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
