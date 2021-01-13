@@ -321,6 +321,27 @@ def normalize_reproduction_coefficient(df_reproduction: pd.DataFrame):
     return df_reproduction_normalized
 
 
+def convert_mean_temperature_to_ranges(df_mean_temperature: pd.DataFrame):
+    """
+    Convert mean temperatures per month to discrete values [<0; 0-10, 10-20, 20-30, 30>]
+
+    :param df_mean_temperature: dataframe with mean temperature per month and country
+    :return:
+    """
+
+    df_mean_temperature_converted = df_mean_temperature.copy()
+    temperature_ranges_masks = [(df_mean_temperature < 0),
+                                ((df_mean_temperature >= 0) & (df_mean_temperature < 10)),
+                                ((df_mean_temperature >= 10) & (df_mean_temperature < 20)),
+                                ((df_mean_temperature >= 20) & (df_mean_temperature < 30)),
+                                (df_mean_temperature >= 30)]
+
+    for idx, temperature_mask in enumerate(temperature_ranges_masks):
+        df_mean_temperature_converted[temperature_mask] = idx
+
+    return df_mean_temperature_converted
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
@@ -331,6 +352,7 @@ def main():
                                                                                    df_recovered)
 
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed, df_deaths, df_recovered)
+    # TODO: Calculate recovery data for countries that started to publish it later
     df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
     df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
@@ -348,7 +370,9 @@ def main():
                                                                                               df_reproduction,
                                                                                               df_death_ratio)
 
-    normalize_reproduction_coefficient(df_reproduction)
+    df_reproduction_normalized = normalize_reproduction_coefficient(df_reproduction)
+
+    df_mean_temperature_converted = convert_mean_temperature_to_ranges(df_mean_temperature)
 
 
 if __name__ == "__main__":
