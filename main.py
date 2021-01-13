@@ -342,15 +342,15 @@ def convert_mean_temperature_to_ranges(df_mean_temperature: pd.DataFrame):
     return df_mean_temperature_converted
 
 
-def create_reproduction_temperature_df(df_mean_temperature_converted: pd.DataFrame,
-                                       df_reproduction_normalized: pd.DataFrame):
+def create_reproduction_temperature_dict(df_mean_temperature_converted: pd.DataFrame,
+                                         df_reproduction_normalized: pd.DataFrame):
     """
-    Creates dataframe with temperature ranges as columns. Each temperature range has it list of reproduction
+    Creates dictionary with temperature bins as keys. Each temperature bin has it list of reproduction
      coefficients
 
     :param df_mean_temperature_converted: Dataframe with mean_temperature converted to categorical data
     :param df_reproduction_normalized: Dataframe with normalized reproduction coefficient per country
-    :return: Dataframe with temperature ranges as columns. Each temperature range has it list of reproduction
+    :return: Dictionary with temperature bins as keys. Each temperature bin has it list of reproduction
     coefficients
     """
 
@@ -362,24 +362,20 @@ def create_reproduction_temperature_df(df_mean_temperature_converted: pd.DataFra
     # Add 1 to all indexes to match month indexes. So January -> 1, February -> 2 etc.
     df_mean_temperature_converted.columns = np.arange(1, 13)
 
-    temperature_ranges = ["<0", "0-10", "10-20", "20-30", ">30"]
-    temperature_bins = {0: [], 1: [], 2: [], 3: [], 4: []}
+    temperature_bins = ["<0", "0-10", "10-20", "20-30", ">30"]
+    temperature_reproduction_coeff = {0: [], 1: [], 2: [], 3: [], 4: []}
 
     for country in df_reproduction_normalized.index.values:
         for month in df_reproduction_normalized.columns.values:
             temperature_bin = df_mean_temperature_converted.loc[country, month]
             reproduction_value = df_reproduction_normalized.loc[country, month]
             if not pd.isna(reproduction_value):
-                temperature_bins[temperature_bin].append(reproduction_value)
+                temperature_reproduction_coeff[temperature_bin].append(reproduction_value)
 
-    df_reproduction_temperature = pd.DataFrame()
-    for bin_key in temperature_bins.keys():
-        df = pd.DataFrame(data=temperature_bins[bin_key])
-        df_reproduction_temperature = pd.concat([df_reproduction_temperature, df], ignore_index=True, axis=1)
+    for bin_number, bin_key in zip(list(temperature_reproduction_coeff.keys()), temperature_bins):
+        temperature_reproduction_coeff[bin_key] = temperature_reproduction_coeff.pop(bin_number)
 
-    df_reproduction_temperature.columns = temperature_ranges
-
-    return df_reproduction_temperature
+    return temperature_reproduction_coeff
 
 
 def main():
@@ -414,7 +410,8 @@ def main():
 
     df_mean_temperature_converted = convert_mean_temperature_to_ranges(df_mean_temperature)
 
-    create_reproduction_temperature_df(df_mean_temperature_converted, df_reproduction_normalized)
+    temperature_reproduction_coeff = create_reproduction_temperature_dict(df_mean_temperature_converted,
+                                                                          df_reproduction_normalized)
 
 
 if __name__ == "__main__":
