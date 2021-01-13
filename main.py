@@ -162,10 +162,11 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     return df_death_ratio
 
 
-def calculate_mean_active_cases(df_active_cases: pd.DataFrame, mean_days_number=7):
+def calculate_mean_active_cases(df_active_cases: pd.DataFrame, mean_days_number=7, active_cases_threshold=100):
     """
     Calculate mean of active cases from last mean_days_number
 
+    :param active_cases_threshold: threshold of daily active cases
     :param df_active_cases: dataframe with active cases
     :param mean_days_number: number of days to calculate mean
     :return: dataframe with mean active cases
@@ -177,7 +178,7 @@ def calculate_mean_active_cases(df_active_cases: pd.DataFrame, mean_days_number=
     df_active_cases_copy = df_active_cases.copy()
     # If active case in day is less than 100, then put NAN in that place. This will ensure, that we will skip the data
     # that has less than 100 cases per day in calculating mean active cases in the "mean_days_number" period.
-    df_active_cases_copy[df_active_cases_copy < 100] = np.nan
+    df_active_cases_copy[df_active_cases_copy < active_cases_threshold] = np.nan
 
     for day in df_mean_active_cases.columns:
         date_range = pd.date_range(day - pd.DateOffset(days=mean_days_number - 1), day, freq="D")
@@ -306,15 +307,16 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
 
 def normalize_reproduction_coefficient(df_reproduction: pd.DataFrame):
     """
-    Calculate normalized reproduction coefficient for each country by dividing each coefficient by maximum
-     coefficient per country
+    Calculate normalized reproduction coefficient for each country by calculating mean reproduction per month and
+    dividing each coefficient by country's maximum coefficient
 
     :param df_reproduction: dataframe with reproduction coefficient for each country and day
     :return: dataframe with normalized reproduction coefficient for each country and day
     """
 
-    df_max = df_reproduction.max(axis=1)
-    df_reproduction_normalized = df_reproduction.div(df_max, axis=0)
+    df_reproduction_mean = df_reproduction.resample(rule="M",axis=1).mean()
+    df_max = df_reproduction_mean.max(axis=1)
+    df_reproduction_normalized = df_reproduction_mean.div(df_max, axis=0)
 
     return df_reproduction_normalized
 
