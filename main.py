@@ -6,6 +6,8 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset
+from scipy.stats import f_oneway, normaltest
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 
 def read_covid_time_series_data(path: str):
@@ -378,6 +380,64 @@ def create_reproduction_temperature_dict(df_mean_temperature_converted: pd.DataF
     return temperature_reproduction_coeff
 
 
+def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.05):
+    """
+    Check hypothesis that temperature has impact on COVID-19 transmission
+
+    :param temperature_reproduction_coeff: Dictionary with temperature bins as keys. Each temperature bin has it list of reproduction
+    coefficients
+    :param alpha: significance level
+    :return:
+    """
+
+    print("\n\n########################################################################")
+    print("########################################################################")
+    print("Czy temperatura otoczenia istotnie wpływa na szybkość rozprzestrzeniania się wirusa?")
+    print("Hipoteza H_0: Temperatura otoczenia nie wpływa na szybkość rozprzestrzeniania się wirusa")
+    print("Hipoteza H_1: Temperatura otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
+    print(f"Zakładany przedział ufności: {1-alpha}")
+
+    # Unpack the data from the dictionary
+    data_less_0 = temperature_reproduction_coeff["<0"]
+    data_0_10 = temperature_reproduction_coeff["0-10"]
+    data_10_20 = temperature_reproduction_coeff["10-20"]
+    data_20_30 = temperature_reproduction_coeff["20-30"]
+    data_greater_30 = temperature_reproduction_coeff[">30"]
+
+    # Checking if data distribution is normal
+    print("\nSprawdzanie czy testowane zbiory mają rozkład normalny:")
+    for data_bin in temperature_reproduction_coeff.keys():
+        stat, p = normaltest(temperature_reproduction_coeff[data_bin])
+        if p < alpha:
+            print(f"Odrzucamy hipotezę 0, że rozkład {data_bin} nie jest normalny. Przyjmujemy hipotezę alternatywną,"
+                  f" że rozkład jest normalny")
+
+    # Checking if standard deviation is close between data
+    print("\nSprawdzanie czy testowane zbiory mają zbliżoną wariancję/odchylenie standardowe")
+    std_devs = []
+    for data_bin in temperature_reproduction_coeff.keys():
+        std = np.std(temperature_reproduction_coeff[data_bin])
+        std_devs.append(std)
+    print(f"Testowane zbiory mają zbliżone odchylenia standardowe: {std_devs}")
+
+    f_value, p_value = f_oneway(data_less_0, data_0_10, data_10_20, data_20_30, data_greater_30)
+    print(f"\nF-stat {f_value}, Prawdopodobieństwo testowe: {p_value:.9f}")
+    if p_value < alpha:
+        print(f"Prawdopodobieństwo testowe {p_value:.9f} < poziom istotności {alpha}")
+        print(f"Istnieje istotna różnica! Można wykluczyć hipotezę zerową.")
+        print("\nAnaliza post-hoc")
+        print(pairwise_tukeyhsd(
+            np.concatenate([data_less_0, data_0_10, data_10_20, data_20_30, data_greater_30]),
+            np.concatenate([["data_less_0"]*len(data_less_0), ["data_0_10"]*len(data_0_10),
+                            ["data_10_20"]*len(data_10_20), ["data_20_30"]*len(data_20_30),
+                            ["data_greater_30"]*len(data_greater_30)])))
+
+        print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\" oraz zbiorami \"10-20\" i \"20-30\" dla"
+              f" poziomu ufności {1- alpha}. Można dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
+              f" otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
+        print("Dla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
+
+
 def main():
     df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
@@ -412,6 +472,8 @@ def main():
 
     temperature_reproduction_coeff = create_reproduction_temperature_dict(df_mean_temperature_converted,
                                                                           df_reproduction_normalized)
+
+    check_temperature_hypothesis(temperature_reproduction_coeff=temperature_reproduction_coeff)
 
 
 if __name__ == "__main__":
