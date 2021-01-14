@@ -153,14 +153,13 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
                                        (df_recovered[month_end] - df_recovered[month_start]))
 
     df_death_ratio.fillna(0, inplace=True)
-    # TODO: What with countries that stopped publishing deaths and recovered? for example China_Hubei
-    # TODO: What with countries that started publishing recovery data later (for example Poland)
+
     # plot_country("Netherlands", df_death_ratio, "death_ratio")
     # plot_country("Estonia", df_deaths, "Estonia deaths")
     # plot_country("France", df_recovered, "France recovered")
     # plot_country("Netherlands", df_confirmed, "confirmed")
     #
-    plt.show()
+    # plt.show()
 
     return df_death_ratio
 
@@ -556,7 +555,7 @@ def main():
     df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed=df_confirmed,
                                                                                df_deaths=df_deaths,
                                                                                df_recovered=df_recovered)
-    # TODO: Calculate recovery data for countries that started to publish it later
+
     df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
     df_active_cases = calculate_active_cases_per_day(df_confirmed=df_confirmed,
