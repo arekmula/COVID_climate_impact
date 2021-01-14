@@ -156,11 +156,11 @@ def calculate_monthly_death_ratio(df_confirmed: pd.DataFrame, df_deaths: pd.Data
     # TODO: What with countries that stopped publishing deaths and recovered? for example China_Hubei
     # TODO: What with countries that started publishing recovery data later (for example Poland)
     # plot_country("Netherlands", df_death_ratio, "death_ratio")
-    # plot_country("Netherlands", df_deaths, "deaths")
-    # plot_country("Netherlands", df_recovered, "recovered")
+    # plot_country("Estonia", df_deaths, "Estonia deaths")
+    # plot_country("France", df_recovered, "France recovered")
     # plot_country("Netherlands", df_confirmed, "confirmed")
     #
-    # plt.show()
+    plt.show()
 
     return df_death_ratio
 
@@ -282,14 +282,12 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
 
 
 def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
-                                       df_reproduction: pd.DataFrame,
-                                       df_death_ratio: pd.DataFrame):
+                                       df_reproduction: pd.DataFrame):
     """
     Drops countries with no temperature
 
     :param df_mean_temperature: dataframe with mean temperature for each country and month
     :param df_reproduction: dataframe with reproduction coefficient for each country and day
-    :param df_death_ratio: dataframe with death ratio for each country and month
     :return input dataframes with countries that are in df_mean_temperature dataframe:
     """
     NO_TEMPERATURE_VALUE = 32000
@@ -303,9 +301,8 @@ def drop_countries_with_no_temperature(df_mean_temperature: pd.DataFrame,
 
     # Delete countries for which we don't have measured temperature
     df_reproduction = df_reproduction[df_reproduction.index.isin(countries_with_temperature)]
-    df_death_ratio = df_death_ratio[df_death_ratio.index.isin(countries_with_temperature)]
 
-    return df_mean_temperature, df_reproduction, df_death_ratio
+    return df_mean_temperature, df_reproduction
 
 
 def normalize_reproduction_coefficient(df_reproduction: pd.DataFrame):
@@ -317,7 +314,7 @@ def normalize_reproduction_coefficient(df_reproduction: pd.DataFrame):
     :return: dataframe with normalized reproduction coefficient for each country and day
     """
 
-    df_reproduction_mean = df_reproduction.resample(rule="M",axis=1).mean()
+    df_reproduction_mean = df_reproduction.resample(rule="M", axis=1).mean()
     df_max = df_reproduction_mean.max(axis=1)
     df_reproduction_normalized = df_reproduction_mean.div(df_max, axis=0)
 
@@ -396,7 +393,7 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
     print("Czy temperatura otoczenia istotnie wpływa na szybkość rozprzestrzeniania się wirusa?")
     print("Hipoteza H_0: Temperatura otoczenia nie wpływa na szybkość rozprzestrzeniania się wirusa")
     print("Hipoteza H_1: Temperatura otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
-    print(f"Zakładany przedział ufności: {1-alpha}")
+    print(f"Zakładany przedział ufności: {1 - alpha}")
 
     # Unpack the data from the dictionary
     data_less_0 = temperature_reproduction_coeff["<0"]
@@ -429,14 +426,85 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
         print("\nAnaliza post-hoc")
         print(pairwise_tukeyhsd(
             np.concatenate([data_less_0, data_0_10, data_10_20, data_20_30, data_greater_30]),
-            np.concatenate([["data_less_0"]*len(data_less_0), ["data_0_10"]*len(data_0_10),
-                            ["data_10_20"]*len(data_10_20), ["data_20_30"]*len(data_20_30),
-                            ["data_greater_30"]*len(data_greater_30)])))
+            np.concatenate([["data_less_0"] * len(data_less_0), ["data_0_10"] * len(data_0_10),
+                            ["data_10_20"] * len(data_10_20), ["data_20_30"] * len(data_20_30),
+                            ["data_greater_30"] * len(data_greater_30)])))
 
         print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\" oraz zbiorami \"10-20\" i \"20-30\" dla"
-              f" poziomu ufności {1- alpha}. Można dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
+              f" poziomu ufności {1 - alpha}. Można dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
               f" otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
         print("Dla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
+
+
+def check_death_ratio_in_europe(df_death_ratio: pd.DataFrame, european_countries: list,alpha=0.05, ):
+    """
+    Check if there's big difference in deaths in european countries.
+
+    :param european_countries: list of european countries from dataframe
+    :param alpha: significance level
+    :param df_death_ratio: Dataframe with death ratio per month and country
+    :return:
+    """
+
+    print("\n\n\n\n########################################################################")
+    print("########################################################################")
+    print("Czy między poszczególnymi krajami w Europie istnieją różnice w śmiertelności z powodu COVID-19?"
+          " \nWersja z testem ANOVA")
+    print("Hipoteza H_0: Pomiędzy poszczególnymi krajami w Europie nie ma różnicy w śmiertelności z powodu COVID-19")
+    print("Hipoteza H_1: Pomiędzy poszczególnymi krajami w Europie jest różnica w śmiertelności z powodu COVID-19")
+    print(f"Zakładany przedział ufności: {1 - alpha}")
+
+    df_death_ratio_europe: pd.DataFrame = df_death_ratio.loc[european_countries, :]
+
+    # Delete Countries with inf and -inf in Dataframe
+    df_death_ratio_europe = df_death_ratio_europe[~df_death_ratio_europe.isin([np.inf, -np.inf]).any(1)]
+
+    # France and Estonia have negative values in death/ratio coefficients
+    # France had some mismatch in recovery data in July -> uncomment lines in function calculate_monthly_death_ratio
+    # to plot this
+    # Estonia had some mismatch in death data in August -> uncomment lines in function calculate_monthly_death_ratio to
+    # plot this
+    df_death_ratio_europe = df_death_ratio_europe.drop(["France", "Estonia"], axis=0)
+
+    # Checking if data distribution is normal
+    print("\nSprawdzanie czy testowane zbiory mają rozkład normalny")
+    print("Uwaga: Test kurtozy w pakiecie scipy.stats jest prawidłowy tylko dla więcej niż 20 próbek. My mamy tylko"
+          " 11 próbek z ostatnich 11 miesięcy")
+    stat, p = normaltest(df_death_ratio_europe, axis=1)
+    if not (p < alpha).all():
+        countries_indexes_to_drop = np.where(p>alpha)
+        print(f"Dla państw {df_death_ratio_europe.index.values[countries_indexes_to_drop]} możemy przyjąć hipotezę H0,"
+              f"że rozkład nie jest normalny. Państwa zostają odrzucone w dalszej analizie")
+        df_death_ratio_europe = df_death_ratio_europe.loc[p<alpha]
+
+    print("Dla pozostałych państw odrzuczamy hipotezę 0, że rozkład dla któregoś z państw nie jest normalny."
+          " Przyjmujemy hipotezę alternatywną, że jest normalny")
+
+    # Checking if standard deviation is close between data
+    print("\nSprawdzanie czy testowane zbiory mają zbliżoną wariancję/odchylenie standardowe")
+    df_std_dev: pd.DataFrame = df_death_ratio_europe.std(axis=1)
+    df_std_dev_med = df_std_dev.median()
+    countries_to_drop = ["Albania", "Austria", "Denmark", "Luxembourg", "Moldova", "Poland", "Portugal", "Slovakia",
+                         "Switzerland"]
+    print(f"Dla państw: {countries_to_drop} odchylenie standardowe różni się o rząd wielkości od mediany odchyleń"
+          f" {df_std_dev_med:.2f}. \nPaństwa te zostają odrzucone w dalszej analizie.")
+    df_death_ratio_europe = df_death_ratio_europe.drop(countries_to_drop)
+
+    np_death_ratio_europe = df_death_ratio_europe.to_numpy()
+    death_ratio_europe_list = np_death_ratio_europe.tolist()
+
+    f_value, p_value = f_oneway(*death_ratio_europe_list)
+    print(f"\nF-stat {f_value:.4f}, Prawdopodobieństwo testowe: {p_value:.4f}")
+    if p_value < alpha:
+        print(f"Prawdopodobieństwo testowe {p_value:.9f} < poziom istotności {alpha}")
+        print(f"Istnieje istotna różnica! Można wykluczyć hipotezę zerową.")
+        print("\nAnaliza post-hoc ...")
+    else:
+        print(f"Prawdopodobieństwo testowe {p_value:.4f} > poziom istotności {alpha}")
+        print(f"Nie można wykluczyć hipotezy H_0, że pomiędzy poszczególnymi krajami w Europie nie ma różnicy w"
+              f" śmiertelności z powodu COVID-19!")
+
+    return None
 
 
 def main():
@@ -463,9 +531,8 @@ def main():
     df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
                                             Path("data/TerraClimate_tmin_2018.nc"),
                                             df_lat_long)
-    df_mean_temperature, df_reproduction, df_death_ratio = drop_countries_with_no_temperature(df_mean_temperature,
-                                                                                              df_reproduction,
-                                                                                              df_death_ratio)
+    df_mean_temperature, df_reproduction = drop_countries_with_no_temperature(df_mean_temperature,
+                                                                              df_reproduction)
 
     df_reproduction_normalized = normalize_reproduction_coefficient(df_reproduction)
 
@@ -475,6 +542,15 @@ def main():
                                                                           df_reproduction_normalized)
 
     check_temperature_hypothesis(temperature_reproduction_coeff=temperature_reproduction_coeff)
+
+    european_countries = ["Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria",
+                          "Croatia", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Hungary",
+                          "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg",
+                          "Malta", "Moldova", "Monaco", "Netherlands", "Norway", "North Macedonia", "Poland",
+                          "Portugal", "Romania", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain",
+                          "Sweden", "Switzerland", "Ukraine", "United Kingdom"]
+
+    check_death_ratio_in_europe(df_death_ratio, european_countries=european_countries)
 
 
 if __name__ == "__main__":
