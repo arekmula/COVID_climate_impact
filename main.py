@@ -32,6 +32,7 @@ def read_covid_time_series_data(path: str):
     dataframe["Province/State"].fillna('', inplace=True)
     # Create one common column with Country and region after that
     dataframe["Country_region"] = dataframe["Country/Region"] + "_" + dataframe["Province/State"]
+    # Delete "_" from country with no region
     dataframe["Country_region"] = dataframe["Country_region"].replace("_$", "", regex=True)
     # Delete previous used columns
     dataframe.pop("Country/Region")
