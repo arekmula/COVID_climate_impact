@@ -6,7 +6,7 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset
-from scipy.stats import f_oneway, normaltest
+from scipy.stats import f_oneway, normaltest, chi2_contingency
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 
@@ -431,14 +431,53 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
                             ["data_greater_30"] * len(data_greater_30)])))
 
         print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\" oraz zbiorami \"10-20\" i \"20-30\" dla"
-              f" poziomu ufności {1 - alpha}. Można dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
+              f" poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
               f" otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
         print("Dla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
 
 
-def check_death_ratio_in_europe(df_death_ratio: pd.DataFrame, european_countries: list,alpha=0.05, ):
+def check_deaths_difference_europe_chi2(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, european_countries: list,
+                                        alpha=0.05):
     """
-    Check if there's big difference in deaths in european countries.
+    Checks if there's a big difference in deaths in european
+    
+    :param alpha: significance level
+    :param df_confirmed: dataframe with sum of confirmed cases per country
+    :param df_deaths: dataframe with sum of death cases per country
+    :param european_countries: list of european countries
+    :return: 
+    """
+
+    print("\n\n\n\n########################################################################")
+    print("########################################################################")
+    print("Czy między poszczególnymi krajami w Europie istnieją różnice w śmiertelności z powodu COVID-19?"
+          " \nWersja z testem chi2")
+    print("Hipoteza H_0: Pomiędzy poszczególnymi krajami w Europie nie ma różnicy w śmiertelności z powodu COVID-19")
+    print("Hipoteza H_1: Pomiędzy poszczególnymi krajami w Europie jest różnica w śmiertelności z powodu COVID-19")
+    print(f"Zakładany przedział ufności: {1 - alpha}")
+
+    df_confirmed_european: pd.DataFrame = df_confirmed.loc[european_countries, :]
+    df_deaths_european: pd.DataFrame = df_deaths.loc[european_countries, :]
+
+    df_deaths_vs_confirmed = pd.DataFrame(index=df_confirmed_european.index, columns=["confirmed", "deaths"])
+
+    # Save last sum of confirmed and sum of death cases to dataframe
+    df_deaths_vs_confirmed["confirmed"] = df_confirmed_european.iloc[:, -1]
+    df_deaths_vs_confirmed["deaths"] = df_deaths_european.iloc[:, -1]
+
+    np_deaths_vs_confirmed = df_deaths_vs_confirmed.to_numpy()
+
+    chi2, p_val, df, _ = chi2_contingency(np_deaths_vs_confirmed)
+    print(f"\nPrawdopodobieństwo testowe: {p_val}, chi2: {chi2:.0f}, Liczba stopni swobody: {df}")
+    if p_val < alpha:
+        print(f"Prawdopodobieństwo testowe {p_val} < poziom istotności {alpha}")
+        print(f"Istnieje istotna różnica! Można wykluczyć hipotezę zerową oraz przyjąć hipotezę alternatywną, że "
+              f"\nistnieje różnica w śmiertelności pomiędzy poszczególnymi krajami w Europie")
+
+
+def check_deaths_difference_europe_anova(df_death_ratio: pd.DataFrame, european_countries: list, alpha=0.05):
+    """
+    Check if there's big difference in deaths in european countries. ANOVA test
 
     :param european_countries: list of european countries from dataframe
     :param alpha: significance level
@@ -504,25 +543,29 @@ def check_death_ratio_in_europe(df_death_ratio: pd.DataFrame, european_countries
         print(f"Nie można wykluczyć hipotezy H_0, że pomiędzy poszczególnymi krajami w Europie nie ma różnicy w"
               f" śmiertelności z powodu COVID-19!")
 
-    return None
-
 
 def main():
     df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
     df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
     df_confirmed = read_covid_time_series_data(path="data/time_series_covid19_confirmed_global.txt")
 
-    df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed,
-                                                                                   df_deaths,
-                                                                                   df_recovered)
+    df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed=df_confirmed,
+                                                                                   df_deaths=df_deaths,
+                                                                                   df_recovered=df_recovered)
 
-    df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed, df_deaths, df_recovered)
+    df_confirmed, df_deaths, df_recovered = clear_countries_with_no_death_data(df_confirmed=df_confirmed,
+                                                                               df_deaths=df_deaths,
+                                                                               df_recovered=df_recovered)
     # TODO: Calculate recovery data for countries that started to publish it later
     df_recovered = calculate_recovery_data(df_recovered, df_confirmed)
 
-    df_active_cases = calculate_active_cases_per_day(df_confirmed, df_deaths, df_recovered)
+    df_active_cases = calculate_active_cases_per_day(df_confirmed=df_confirmed,
+                                                     df_deaths=df_deaths,
+                                                     df_recovered=df_recovered)
 
-    df_death_ratio = calculate_monthly_death_ratio(df_confirmed, df_deaths, df_recovered)
+    df_death_ratio = calculate_monthly_death_ratio(df_confirmed=df_confirmed,
+                                                   df_deaths=df_deaths,
+                                                   df_recovered=df_recovered)
     df_reproduction = calculate_reproduction_coeff(df_active_cases)
 
     # Remove countries that were removed after initial clean up
@@ -543,6 +586,7 @@ def main():
 
     check_temperature_hypothesis(temperature_reproduction_coeff=temperature_reproduction_coeff)
 
+    # List of european countries needed for next 2 tests
     european_countries = ["Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria",
                           "Croatia", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Hungary",
                           "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg",
@@ -550,7 +594,11 @@ def main():
                           "Portugal", "Romania", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain",
                           "Sweden", "Switzerland", "Ukraine", "United Kingdom"]
 
-    check_death_ratio_in_europe(df_death_ratio, european_countries=european_countries)
+    check_deaths_difference_europe_chi2(df_confirmed=df_confirmed,
+                                        df_deaths=df_deaths,
+                                        european_countries=european_countries)
+
+    check_deaths_difference_europe_anova(df_death_ratio, european_countries=european_countries)
 
 
 if __name__ == "__main__":

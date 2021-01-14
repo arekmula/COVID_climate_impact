@@ -1,7 +1,7 @@
-# COVID19 - climat impact
+# COVID19 - climate impact
 Project for Data Science course @ Poznan University of Technology, Institute of Robotics and Machine Intelligence.
 
-### The goal of the project was to verify hypotheses connected with COVID-19:
+### The goal of the project was to verify hypotheses about COVID-19:
 - Temperature has a big impact on COVID-19 reproduction. 
   * This hypothesis should be checked using ANOVA test (Mean temperature per month and country vs Normalized reproduction coefficient per country and month). 
 - There's a big difference in death ratio between different countries from Europe. This analysis should be done in 2 ways.
@@ -14,6 +14,6 @@ Project for Data Science course @ Poznan University of Technology, Institute of 
 
 ### Project requirements:
 - only one .py script 
-- input files given by relative path, directly from working directory
+- input files given by a relative path, directly from working directory
 - Python 3.8
 - see `requirements.txt`
