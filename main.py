@@ -239,7 +239,7 @@ def find_long_lat_index(latitudes, longitudes, df_lat_long: pd.DataFrame):
 
 
 def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.DataFrame,
-                      df_temp_mean_path=Path("data/df_temp_mean.csv")):
+                      df_temp_mean_path=Path("df_temp_mean.csv")):
     """
     Computes mean temperature for each country and month, based on country latitude and longitude.
 
@@ -275,7 +275,7 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
 
             df_temp_mean.loc[index, :] = (temp_max + temp_min) / 2
 
-        df_temp_mean.to_csv("data/df_temp_mean.csv")
+        df_temp_mean.to_csv("df_temp_mean.csv")
 
         return df_temp_mean
 
@@ -429,9 +429,10 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
                             ["data_10_20"] * len(data_10_20), ["data_20_30"] * len(data_20_30),
                             ["data_greater_30"] * len(data_greater_30)])))
 
-        print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\" oraz zbiorami \"10-20\" i \"20-30\" dla"
-              f" poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
-              f" otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
+        print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\", zbiorami \"10-20\" i \"20-30\" oraz"
+              f" zbiorami \"10-20\" i \">30\" dla poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów odrzucić"
+              f" hipotezę H0 i przyjąć hipotezę alternatywną, że temperatura otoczenia wpływa na szybkość"
+              f" rozprzestrzeniania się wirusa.")
         print("Dla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
 
 
@@ -544,9 +545,9 @@ def check_deaths_difference_europe_anova(df_death_ratio: pd.DataFrame, european_
 
 
 def main():
-    df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
-    df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
-    df_confirmed = read_covid_time_series_data(path="data/time_series_covid19_confirmed_global.txt")
+    df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
+    df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
+    df_confirmed = read_covid_time_series_data(path="time_series_covid19_confirmed_global.txt")
 
     df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed=df_confirmed,
                                                                                    df_deaths=df_deaths,
@@ -570,8 +571,8 @@ def main():
     # Remove countries that were removed after initial clean up
     df_lat_long = df_lat_long[df_lat_long.index.isin(df_reproduction.index.values)]
 
-    df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
-                                            Path("data/TerraClimate_tmin_2018.nc"),
+    df_mean_temperature = read_terraclimate(Path("TerraClimate_tmax_2018.nc"),
+                                            Path("TerraClimate_tmin_2018.nc"),
                                             df_lat_long)
     df_mean_temperature, df_reproduction = drop_countries_with_no_temperature(df_mean_temperature,
                                                                               df_reproduction)
