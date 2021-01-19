@@ -426,9 +426,9 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
         print("\nAnaliza post-hoc")
         print(pairwise_tukeyhsd(
             np.concatenate([data_less_0, data_0_10, data_10_20, data_20_30, data_greater_30]),
-            np.concatenate([["data_less_0"] * len(data_less_0), ["data_0_10"] * len(data_0_10),
-                            ["data_10_20"] * len(data_10_20), ["data_20_30"] * len(data_20_30),
-                            ["data_greater_30"] * len(data_greater_30)])))
+            np.concatenate([["<0"] * len(data_less_0), ["0-10"] * len(data_0_10),
+                            ["10-20"] * len(data_10_20), ["20-30"] * len(data_20_30),
+                            [">30"] * len(data_greater_30)])))
 
         print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\", zbiorami \"10-20\" i \"20-30\" oraz"
               f" zbiorami \"10-20\" i \">30\" dla poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów odrzucić"
