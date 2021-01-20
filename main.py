@@ -8,7 +8,6 @@ from matplotlib import pyplot as plt
 from netCDF4 import Dataset
 from scipy.stats import f_oneway, normaltest, chi2_contingency
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from statsmodels.stats.power import TTestIndPower
 
 
 def read_covid_time_series_data(path: str):
@@ -434,18 +433,7 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
               f" zbiorami \"10-20\" i \">30\" dla poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów odrzucić"
               f" hipotezę H0 i przyjąć hipotezę alterantywną, że temperatura otoczenia wpływa na szybkość"
               f" rozprzestrzeniania się wirusa."
-              f"\nDla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
-
-        # Check power of test
-        data_pairs = [(data_0_10, data_20_30), (data_10_20, data_20_30), (data_10_20, data_greater_30)]
-        data_pairs_names = [("0-10", "20-30"), ("10-20", "20-30"), ("10-20", ">30")]
-        analysis = TTestIndPower()
-        print("Obliczanie mocy testu dla zbiorów z istotną różnicą:")
-        for pair, pair_names in zip(data_pairs, data_pairs_names):
-            effect = (np.mean(pair[0]) - np.mean(pair[1])) / ((np.std(pair[0]) + np.std(pair[1])) / 2)
-            result = analysis.solve_power(effect, power=None, nobs1=len(pair[0]), ratio=1.0, alpha=alpha)
-            print(f"Dla zbiorów {pair_names[0]} i {pair_names[1]} możemy przyjąć hipotezę alternatywną z"
-                  f" prawdopodobieństwem: {result:.4f}")
+              f"\nDla pozostałych zbiorów mamy za mało przesłanek aby odrzucić, bądź potwierdzić hipotezę 0.")
 
 
 def check_deaths_difference_europe_chi2(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, european_countries: list,
@@ -483,13 +471,9 @@ def check_deaths_difference_europe_chi2(df_confirmed: pd.DataFrame, df_deaths: p
     print(f"\nPrawdopodobieństwo testowe: {p_val}, chi2: {chi2:.0f}, Liczba stopni swobody: {df}")
     if p_val < alpha:
         print(f"Prawdopodobieństwo testowe {p_val} < poziom istotności {alpha}")
-        analysis = TTestIndPower()
-        effect = ((np.mean(df_deaths_vs_confirmed["confirmed"]) - np.mean(df_deaths_vs_confirmed["deaths"])) /
-                  ((np.std(df_deaths_vs_confirmed["confirmed"]) + np.std(df_deaths_vs_confirmed["deaths"])) / 2))
-        result = analysis.solve_power(effect, power=None, nobs1=len(df_deaths_vs_confirmed["confirmed"]), ratio=1.0,
-                                      alpha=alpha)
-        print(f"Istnieje istotna różnica! Można wykluczyć hipotezę zerową oraz przyjąć z prawdopodobieństwem {result}"
-              f" hipotezę alternatywną, że istnieje różnica w śmiertelności pomiędzy poszczególnymi krajami w Europie")
+        print(f"Istnieje istotna różnica! \nMożna wykluczyć hipotezę zerową, że między poszczególnymi krajami w Europie"
+              f" nie ma różnicy w śmiertelności z powodu COVID-19 i przyjąć hipotezę alternatywną,"
+              f" że jest istotna różnica.")
 
 
 def check_deaths_difference_europe_anova(df_death_ratio: pd.DataFrame, european_countries: list, alpha=0.05):
