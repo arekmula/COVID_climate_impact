@@ -425,14 +425,15 @@ def check_temperature_hypothesis(temperature_reproduction_coeff: dict, alpha=0.0
         print("\nAnaliza post-hoc")
         print(pairwise_tukeyhsd(
             np.concatenate([data_less_0, data_0_10, data_10_20, data_20_30, data_greater_30]),
-            np.concatenate([["data_less_0"] * len(data_less_0), ["data_0_10"] * len(data_0_10),
-                            ["data_10_20"] * len(data_10_20), ["data_20_30"] * len(data_20_30),
-                            ["data_greater_30"] * len(data_greater_30)])))
+            np.concatenate([["<0"] * len(data_less_0), ["0-10"] * len(data_0_10),
+                            ["10-20"] * len(data_10_20), ["20-30"] * len(data_20_30),
+                            [">30"] * len(data_greater_30)])))
 
-        print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\" oraz zbiorami \"10-20\" i \"20-30\" dla"
-              f" poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów przyjąć hipotezę alternatywną, że temperatura"
-              f" otoczenia wpływa na szybkość rozprzestrzeniania się wirusa")
-        print("Dla pozostałych zbiorów mamy za mało próbek aby odrzucić, bądź potwierdzić hipotezę 0.")
+        print("Istnieje istotna różnica między zbiorami \"0-10\" i \"20-30\", zbiorami \"10-20\" i \"20-30\" oraz"
+              f" zbiorami \"10-20\" i \">30\" dla poziomu ufności {1 - alpha}. \nMożna dla tych zbiorów odrzucić"
+              f" hipotezę H0 i przyjąć hipotezę alterantywną, że temperatura otoczenia wpływa na szybkość"
+              f" rozprzestrzeniania się wirusa."
+              f"\nDla pozostałych zbiorów mamy za mało przesłanek aby odrzucić, bądź potwierdzić hipotezę 0.")
 
 
 def check_deaths_difference_europe_chi2(df_confirmed: pd.DataFrame, df_deaths: pd.DataFrame, european_countries: list,
@@ -470,8 +471,9 @@ def check_deaths_difference_europe_chi2(df_confirmed: pd.DataFrame, df_deaths: p
     print(f"\nPrawdopodobieństwo testowe: {p_val}, chi2: {chi2:.0f}, Liczba stopni swobody: {df}")
     if p_val < alpha:
         print(f"Prawdopodobieństwo testowe {p_val} < poziom istotności {alpha}")
-        print(f"Istnieje istotna różnica! Można wykluczyć hipotezę zerową oraz przyjąć hipotezę alternatywną, że "
-              f"\nistnieje różnica w śmiertelności pomiędzy poszczególnymi krajami w Europie")
+        print(f"Istnieje istotna różnica! \nMożna wykluczyć hipotezę zerową, że między poszczególnymi krajami w Europie"
+              f" nie ma różnicy w śmiertelności z powodu COVID-19 i przyjąć hipotezę alternatywną,"
+              f" że jest istotna różnica.")
 
 
 def check_deaths_difference_europe_anova(df_death_ratio: pd.DataFrame, european_countries: list, alpha=0.05):
