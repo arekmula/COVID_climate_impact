@@ -239,7 +239,7 @@ def find_long_lat_index(latitudes, longitudes, df_lat_long: pd.DataFrame):
 
 
 def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.DataFrame,
-                      df_temp_mean_path=Path("df_temp_mean.csv")):
+                      df_temp_mean_path=Path("data/df_temp_mean.csv")):
     """
     Computes mean temperature for each country and month, based on country latitude and longitude.
 
@@ -275,7 +275,7 @@ def read_terraclimate(path_temp_max: Path, path_temp_min: Path, df_lat_long: pd.
 
             df_temp_mean.loc[index, :] = (temp_max + temp_min) / 2
 
-        df_temp_mean.to_csv("df_temp_mean.csv")
+        df_temp_mean.to_csv("data/df_temp_mean.csv")
 
         return df_temp_mean
 
@@ -546,9 +546,9 @@ def check_deaths_difference_europe_anova(df_death_ratio: pd.DataFrame, european_
 
 
 def main():
-    df_deaths = read_covid_time_series_data(path="time_series_covid19_deaths_global.txt")
-    df_recovered = read_covid_time_series_data(path="time_series_covid19_recovered_global.txt")
-    df_confirmed = read_covid_time_series_data(path="time_series_covid19_confirmed_global.txt")
+    df_deaths = read_covid_time_series_data(path="data/time_series_covid19_deaths_global.txt")
+    df_recovered = read_covid_time_series_data(path="data/time_series_covid19_recovered_global.txt")
+    df_confirmed = read_covid_time_series_data(path="data/time_series_covid19_confirmed_global.txt")
 
     df_confirmed, df_deaths, df_recovered, df_lat_long = create_long_lat_dataframe(df_confirmed=df_confirmed,
                                                                                    df_deaths=df_deaths,
@@ -572,8 +572,8 @@ def main():
     # Remove countries that were removed after initial clean up
     df_lat_long = df_lat_long[df_lat_long.index.isin(df_reproduction.index.values)]
 
-    df_mean_temperature = read_terraclimate(Path("TerraClimate_tmax_2018.nc"),
-                                            Path("TerraClimate_tmin_2018.nc"),
+    df_mean_temperature = read_terraclimate(Path("data/TerraClimate_tmax_2018.nc"),
+                                            Path("data/TerraClimate_tmin_2018.nc"),
                                             df_lat_long)
     df_mean_temperature, df_reproduction = drop_countries_with_no_temperature(df_mean_temperature,
                                                                               df_reproduction)
